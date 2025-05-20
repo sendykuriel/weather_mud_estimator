@@ -32,7 +32,7 @@ if st.button("Get Weather"):
         st.success("✅ El camino de tierra está seco. Podés pasar.")
     elif road_surface != "unpaved":
         st.warning("⚠️ El camino no es de tierra. No se necesita estimación.")
-        st.test("El Camino es de", road_surface)
+        st.text("El Camino es de", road_surface)
     else:
         st.error("🚫 El camino de tierra está embarrado. Mejor evitarlo.")
         
