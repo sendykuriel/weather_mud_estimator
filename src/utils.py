@@ -13,6 +13,8 @@ def is_road_dry(daily_df: pd.DataFrame) -> bool:
     rain_ok = (last_days["rain"] <= 5).all()
     humidity_ok = (last_days["relative_humidity_2m"] <= 90).all()
     return rain_ok and humidity_ok
+
+
 def road_status_per_day(daily_df: pd.DataFrame) -> pd.DataFrame:
     """
     Return a copy of daily_df with a column indicating road status.
@@ -21,10 +23,18 @@ def road_status_per_day(daily_df: pd.DataFrame) -> pd.DataFrame:
         pd.DataFrame with added column 'road_status' = 'Seco' / 'Barro'
     """
     df = daily_df.copy()
-    df["road_status"] = df.apply(
-        lambda row: "Seco" if row["rain"] <= 5 and row["relative_humidity_2m"] <= 90 else "Barro", axis=1
-    )
+    df["date_day"] = pd.to_datetime(df["date_day"])
+
+    # Criterio de 'Barro': lluvia > 5 mm o humedad > 90%
+    df["barro_flag"] = (df["rain"] > 5) | (df["relative_humidity_2m"] > 90)
+
+    # Rolling ventana de 2 días para ver si el día actual o anterior fue problemático
+    df["barro_rolling"] = df["barro_flag"].rolling(window=2, min_periods=1).max()
+
+    df["road_status"] = df["barro_rolling"].apply(lambda x: "Barro" if x else "Seco")
     return df
+
+
 import calendar
 
 import matplotlib.patches as mpatches
