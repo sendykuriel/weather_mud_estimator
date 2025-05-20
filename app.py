@@ -7,6 +7,10 @@ from src.utils import (estimate_next_dry_day, get_road_surface, is_road_dry,
 from src.weather_data import get_weather_data
 from streamlit_folium import st_folium
 
+# --- Init state ---
+if "weather_fetched" not in st.session_state:
+    st.session_state.weather_fetched = False
+
 st.title("Weather Forecast Dashboard")
 
 # 📍 Predefined locations
@@ -25,10 +29,15 @@ lat = st.number_input("Latitude", value=default_lat, format="%.6f")
 lon = st.number_input("Longitude", value=default_lon, format="%.6f")
 days = st.slider("Days of past data", 1, 90, 30)
 
+# --- Button triggers data load ---
 if st.button("Get Weather"):
+    st.session_state.weather_fetched = True
+
+# --- Main logic ---
+if st.session_state.weather_fetched:
     hourly_df, daily_df = get_weather_data(lat, lon, past_days=days)
     road_surface = get_road_surface(lat, lon)
-    next_dry_day = None  # Prevent undefined variable
+    next_dry_day = None
 
     if is_road_dry(daily_df) and road_surface == "unpaved":
         st.success("✅ El camino de tierra está seco. Podés pasar.")
@@ -61,7 +70,7 @@ if st.button("Get Weather"):
     folium.Marker([lat, lon], tooltip="Ubicación seleccionada").add_to(m)
     st_folium(m, width=700, height=500)
 
-# Footer
+# --- Footer ---
 st.text("Created by uri zen")
 github_url = "https://github.com/sendykuriel"
 st.write("Check out my GitHub (%s)" % github_url)
