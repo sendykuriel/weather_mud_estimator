@@ -12,6 +12,7 @@ locations = {
     "Uri Land": {"lat": -35.081202, "lon": -59.033928},
     "Zapiola": {"lat": -35.06099547526981, "lon": -59.04251008235054},
     "Areco": {"lat": -34.256575, "lon": -59.487683},
+    "Campana": {"lat": -34.17767498263812, "lon":-58.966297516567025},
 }
 
 selected_location = st.selectbox("Choose a location:", list(locations.keys()))
