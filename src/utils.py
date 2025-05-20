@@ -17,22 +17,43 @@ def is_road_dry(daily_df: pd.DataFrame) -> bool:
 
 def road_status_per_day(daily_df: pd.DataFrame) -> pd.DataFrame:
     """
-    Return a copy of daily_df with a column indicating road status.
+    Marks days as 'Mud' if there was recent rain, and extends muddy status
+    if humidity remains high for the following days.
 
-    Returns:
-        pd.DataFrame with added column 'road_status' = 'Seco' / 'Barro'
+    Rules:
+    - If rain > 5mm → the road becomes muddy.
+    - After rain, the road stays muddy:
+        - for at least 2 days, OR
+        - as long as humidity stays above 90%.
+    - Once it's been dry for 2+ days and humidity drops, the road becomes 'Dry' again.
     """
     df = daily_df.copy()
     df["date_day"] = pd.to_datetime(df["date_day"])
+    df["road_status"] = "Dry"
 
-    # Criterio de 'Barro': lluvia > 5 mm o humedad > 90%
-    df["barro_flag"] = (df["rain"] > 5) | (df["relative_humidity_2m"] > 90)
+    df["heavy_rain"] = df["rain"] > 5
+    df["high_humidity"] = df["relative_humidity_2m"] > 90
 
-    # Rolling ventana de 2 días para ver si el día actual o anterior fue problemático
-    df["barro_rolling"] = df["barro_flag"].rolling(window=2, min_periods=1).max()
+    is_muddy = False
+    days_since_rain = 99  # arbitrarily large to start
 
-    df["road_status"] = df["barro_rolling"].apply(lambda x: "Barro" if x else "Seco")
+    for i in range(len(df)):
+        if df.loc[i, "heavy_rain"]:
+            is_muddy = True
+            days_since_rain = 0
+            df.loc[i, "road_status"] = "Mud"
+        elif is_muddy:
+            days_since_rain += 1
+            if days_since_rain < 2 or df.loc[i, "high_humidity"]:
+                df.loc[i, "road_status"] = "Mud"
+            else:
+                is_muddy = False
+                df.loc[i, "road_status"] = "Dry"
+        else:
+            df.loc[i, "road_status"] = "Dry"
+
     return df
+
 
 
 import calendar
