@@ -115,7 +115,8 @@ def generate_hourly_rain_data_cloud(lat: float, lon: float, n_points=30) -> pd.D
     Returns:
         pd.DataFrame with columns: date, lat, lon, rain
     """
-    timestamps = [datetime.utcnow() - timedelta(hours=2 * i) for i in range(9, -1, -1)]
+    timestamps = [datetime.utcnow() - timedelta(hours=2 * i) for i in range(60, -1, -1)]
+
     data = []
 
     for t in timestamps:
@@ -124,5 +125,4 @@ def generate_hourly_rain_data_cloud(lat: float, lon: float, n_points=30) -> pd.D
             lon_ = lon + np.random.uniform(-0.5, 0.5)
             rain = np.clip(np.random.normal(4, 2), 0, 10)  # bounded normal
             data.append({"date": t, "lat": lat_, "lon": lon_, "rain": rain})
-
     return pd.DataFrame(data)

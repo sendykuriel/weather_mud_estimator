@@ -1,9 +1,16 @@
 import glob
-from datetime import datetime
+import os
+from datetime import datetime, timedelta
 
+import contextily as cx
+import geopandas as gpd
+import imageio
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
+from scipy.interpolate import griddata
+from shapely.geometry import Point
 
 
 def plot_weather_custom(df: pd.DataFrame):
@@ -157,35 +164,38 @@ def create_rain_gif_with_map(hourly_df: pd.DataFrame, output_path="rain_frames/r
 
     return output_path
 
-import glob
-import os
-
-import contextily as cx
-import geopandas as gpd
-import imageio
-import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
-from scipy.interpolate import griddata
-from shapely.geometry import Point
 
 
-def create_rain_gif_cloud_style(hourly_df: pd.DataFrame, output_path="rain_frames/rain_cloud.gif") -> str:
+
+def create_rain_gif_cloud_style(hourly_df: pd.DataFrame, output_path="rain_frames/rain_cloud.gif", hours_back=72) -> str:
     """
-    Create an animated GIF showing interpolated rain as cloud over a real map with consistent frame size.
+    Create a radar-style animated GIF of interpolated rain clouds over OpenStreetMap.
+    
+    Args:
+        hourly_df: must include ['date', 'lat', 'lon', 'rain']
+        output_path: path for saving the final .gif
+        hours_back: how many hours into the past to include (default 72h = 3 days)
+    
+    Returns:
+        str: Path to the saved gif file
     """
     os.makedirs("rain_frames", exist_ok=True)
-    hourly_df["date"] = pd.to_datetime(hourly_df["date"])
-    frames = []
 
-    # Convert to GeoDataFrame and project to Web Mercator
+    # Normalize time and filter
+    hourly_df["date"] = pd.to_datetime(hourly_df["date"])
+    hourly_df["rounded_time"] = hourly_df["date"].dt.floor("2h")
+    cutoff = datetime.utcnow() - timedelta(hours=hours_back)
+    hourly_df = hourly_df[hourly_df["rounded_time"] >= cutoff]
+    hourly_df.to_clipboard()
+
+    # GeoDataFrame conversion
     gdf = gpd.GeoDataFrame(
         hourly_df,
         geometry=gpd.points_from_xy(hourly_df["lon"], hourly_df["lat"]),
         crs="EPSG:4326"
     ).to_crs(epsg=3857)
 
-    # Calculate fixed bounds for all frames
+    frames = []
     x_all = gdf.geometry.x
     y_all = gdf.geometry.y
     buffer = 20000
@@ -200,16 +210,16 @@ def create_rain_gif_cloud_style(hourly_df: pd.DataFrame, output_path="rain_frame
         global_ymin:global_ymax:200j
     ]
 
-    # Frame generation
-    for timestamp, group in gdf.groupby("date"):
+    for timestamp, group in gdf.groupby("rounded_time"):
         if len(group) < 4:
-            continue  # not enough points for interpolation
+            continue
 
         fig, ax = plt.subplots(figsize=(7, 7))
 
         x = group.geometry.x.values
         y = group.geometry.y.values
         z = group["rain"].values
+        z = np.clip(z, 0.1, 10)  # ensure visible cloud
 
         grid_z = griddata((x, y), z, (grid_x, grid_y), method='cubic', fill_value=0)
 
@@ -229,31 +239,25 @@ def create_rain_gif_cloud_style(hourly_df: pd.DataFrame, output_path="rain_frame
         ax.set_title(f"Rain at {timestamp.strftime('%Y-%m-%d %H:%M')}")
         ax.axis("off")
 
-        # No dynamic colorbar to avoid frame size variation
-        # Optionally: add a fixed colorbar if needed once for preview
-
         frame_path = f"rain_frames/frame_{timestamp.strftime('%Y%m%d_%H%M')}.png"
         plt.savefig(frame_path)
         plt.close()
 
-        # Read frame and ensure shape is valid
         try:
             frame = imageio.v2.imread(frame_path)
             frames.append(frame)
         except Exception as e:
-            print(f"Skipping frame {frame_path} due to error: {e}")
+            print(f"⚠️ Error reading {frame_path}: {e}")
 
-    # Final shape check before writing GIF
     if len(frames) == 0:
-        raise ValueError("❌ No valid frames generated for GIF.")
+        raise ValueError("❌ No valid frames generated.")
 
     first_shape = frames[0].shape
     if not all(f.shape == first_shape for f in frames):
-        raise ValueError("❌ Not all frames have the same shape. Cannot generate GIF.")
+        raise ValueError("❌ Frame size mismatch. Cannot save GIF.")
 
-    imageio.mimsave(output_path, frames, duration=0.6)
+    imageio.mimsave(output_path, frames, duration=1.0)
 
-    # Cleanup PNGs
     for f in glob.glob("rain_frames/*.png"):
         os.remove(f)
 

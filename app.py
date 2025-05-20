@@ -42,9 +42,10 @@ if st.session_state.weather_fetched:
     from src.plotting import create_rain_gif_cloud_style
 
     if st.button("Generate Rain Cloud GIF"):
-        gif_df = generate_hourly_rain_data_cloud(lat, lon)
-        gif_path = create_rain_gif_cloud_style(gif_df)
-        st.image(gif_path, caption="Rain Radar Animation")
+        gif_df = generate_hourly_rain_data_cloud(lat, lon)  # o tu dataframe real
+        gif_path = create_rain_gif_cloud_style(gif_df, hours_back=72)
+        st.image(gif_path, caption="Rain Radar Animation (last 3 days)")
+
 
 
 
