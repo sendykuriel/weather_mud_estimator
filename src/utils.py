@@ -1,5 +1,12 @@
+import calendar
+from datetime import date
+
+import matplotlib.patches as mpatches
+import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import requests
+from pandas import Timestamp
 
 
 def is_road_dry(daily_df: pd.DataFrame) -> bool:
@@ -54,14 +61,6 @@ def road_status_per_day(daily_df: pd.DataFrame) -> pd.DataFrame:
 
     return df
 
-
-
-import calendar
-
-import matplotlib.patches as mpatches
-import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
 
 
 def plot_road_status_calendar_multi(status_df: pd.DataFrame):
@@ -119,7 +118,7 @@ def plot_road_status_calendar_multi(status_df: pd.DataFrame):
                 day = grid[i, j]
                 if day != "":
                     status = status_dict.get(day, "Desconocido")
-                    color = "green" if status == "Seco" else "red" if status == "Barro" else "lightgray"
+                    color = {"Dry": "green", "Mud": "red"}.get(status, "lightgray")
                     rect = mpatches.Rectangle((j, i), 1, 1, facecolor=color, edgecolor="white")
                     ax.add_patch(rect)
                     ax.text(j + 0.5, i + 0.5, day, ha="center", va="center", color="white", fontsize=12)
@@ -135,10 +134,7 @@ def plot_road_status_calendar_multi(status_df: pd.DataFrame):
 
     plt.tight_layout()
     return fig
-from datetime import date
 
-import pandas as pd
-from pandas import Timestamp
 
 
 def estimate_next_dry_day(daily_df: pd.DataFrame) -> pd.Timestamp | None:
