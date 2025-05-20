@@ -1,7 +1,7 @@
 import pandas as pd
 import streamlit as st
 from src.plotting import plot_daily_summary, plot_weather_custom
-from src.utils import (estimate_next_dry_day, is_road_dry,
+from src.utils import (estimate_next_dry_day, get_road_surface, is_road_dry,
                        plot_road_status_calendar_multi, road_status_per_day)
 from src.weather_data import get_weather_data
 
@@ -25,8 +25,13 @@ days = st.slider("Days of past data", 1, 90, 30)
 if st.button("Get Weather"):
     hourly_df, daily_df = get_weather_data(lat, lon, past_days=days)
 
-    if is_road_dry(daily_df):
+    road_surface = get_road_surface(lat, lon)
+
+    if is_road_dry(daily_df) and road_surface == "unpaved":
         st.success("✅ El camino de tierra está seco. Podés pasar.")
+    elif road_surface != "unpaved":
+        st.warning("⚠️ El camino no es de tierra. No se necesita estimación.")
+        st.test("El Camino es de", road_surface)
     else:
         st.error("🚫 El camino de tierra está embarrado. Mejor evitarlo.")
         

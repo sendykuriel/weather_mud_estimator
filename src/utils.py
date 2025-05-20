@@ -1,4 +1,5 @@
 import pandas as pd
+import requests
 
 
 def is_road_dry(daily_df: pd.DataFrame) -> bool:
@@ -133,3 +134,19 @@ def estimate_next_dry_day(daily_df: pd.DataFrame) -> pd.Timestamp | None:
 
 
 
+
+
+def get_road_surface(lat, lon):
+    overpass_url = "http://overpass-api.de/api/interpreter"
+    query = f"""
+    [out:json];
+    way(around:15,{lat},{lon})[highway][surface];
+    out tags;
+    """
+    response = requests.post(overpass_url, data={"data": query})
+    data = response.json()
+
+    if data["elements"]:
+        surface = data["elements"][0]["tags"].get("surface", "unknown")
+        return surface
+    return "no road found"
