@@ -8,3 +8,7 @@ retry-requests>=2.0
 urllib3==2.2.1
 folium>=0.15
 streamlit-folium>=0.14
+imageio
+contextily
+geopandas
+scipy

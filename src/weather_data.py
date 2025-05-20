@@ -1,3 +1,6 @@
+from datetime import datetime, timedelta
+
+import numpy as np
 import openmeteo_requests
 import pandas as pd
 import requests_cache
@@ -69,3 +72,57 @@ def get_weather_data(lat: float, lon: float, timezone: str = "America/Sao_Paulo"
 
     return hourly_df, daily_df
 
+
+
+
+def generate_hourly_rain_data(lat: float, lon: float) -> pd.DataFrame:
+    """
+    Generate synthetic rain data every 2 hours for the last 20 hours at a single location.
+
+    Args:
+        lat (float): Latitude of the location
+        lon (float): Longitude of the location
+
+    Returns:
+        pd.DataFrame: DataFrame with columns ['date', 'lat', 'lon', 'rain']
+    """
+    timestamps = [datetime.utcnow() - timedelta(hours=2 * i) for i in range(9, -1, -1)]
+
+    data = {
+        "date": timestamps,
+        "lat": [lat] * len(timestamps),
+        "lon": [lon] * len(timestamps),
+        "rain": np.random.exponential(2.5, size=len(timestamps))  # or 0s if dry
+    }
+
+    return pd.DataFrame(data)
+
+from datetime import datetime, timedelta
+
+import numpy as np
+import pandas as pd
+
+
+def generate_hourly_rain_data_cloud(lat: float, lon: float, n_points=30) -> pd.DataFrame:
+    """
+    Generate synthetic rain data with multiple spatial points per timestamp.
+    
+    Args:
+        lat (float): center latitude
+        lon (float): center longitude
+        n_points (int): number of points per timestamp
+    
+    Returns:
+        pd.DataFrame with columns: date, lat, lon, rain
+    """
+    timestamps = [datetime.utcnow() - timedelta(hours=2 * i) for i in range(9, -1, -1)]
+    data = []
+
+    for t in timestamps:
+        for _ in range(n_points):
+            lat_ = lat + np.random.uniform(-0.5, 0.5)
+            lon_ = lon + np.random.uniform(-0.5, 0.5)
+            rain = np.clip(np.random.normal(4, 2), 0, 10)  # bounded normal
+            data.append({"date": t, "lat": lat_, "lon": lon_, "rain": rain})
+
+    return pd.DataFrame(data)

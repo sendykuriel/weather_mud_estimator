@@ -4,7 +4,7 @@ import streamlit as st
 from src.plotting import plot_daily_summary, plot_weather_custom
 from src.utils import (estimate_next_dry_day, get_road_surface, is_road_dry,
                        plot_road_status_calendar_multi, road_status_per_day)
-from src.weather_data import get_weather_data
+from src.weather_data import generate_hourly_rain_data_cloud, get_weather_data
 from streamlit_folium import st_folium
 
 # --- Init state ---
@@ -38,6 +38,16 @@ if st.session_state.weather_fetched:
     hourly_df, daily_df = get_weather_data(lat, lon, past_days=days)
     road_surface = get_road_surface(lat, lon)
     next_dry_day = None
+    
+    from src.plotting import create_rain_gif_cloud_style
+
+    if st.button("Generate Rain Cloud GIF"):
+        gif_df = generate_hourly_rain_data_cloud(lat, lon)
+        gif_path = create_rain_gif_cloud_style(gif_df)
+        st.image(gif_path, caption="Rain Radar Animation")
+
+
+
 
     if is_road_dry(daily_df) and road_surface == "unpaved":
         st.success("✅ El camino de tierra está seco. Podés pasar.")
@@ -69,6 +79,8 @@ if st.session_state.weather_fetched:
     m = folium.Map(location=[lat, lon], zoom_start=14)
     folium.Marker([lat, lon], tooltip="Ubicación seleccionada").add_to(m)
     st_folium(m, width=700, height=500)
+    
+
 
 # --- Footer ---
 st.text("Created by uri zen")

@@ -1,3 +1,4 @@
+import glob
 from datetime import datetime
 
 import matplotlib.dates as mdates
@@ -93,3 +94,167 @@ def plot_daily_summary(daily_df: pd.DataFrame):
     fig.legend(loc="upper left", bbox_to_anchor=(0.1, 0.92))
     plt.tight_layout()
     return fig
+
+import glob
+import os
+
+import contextily as cx
+import geopandas as gpd
+import imageio
+import matplotlib.pyplot as plt
+import pandas as pd
+from shapely.geometry import Point
+
+
+def create_rain_gif_with_map(hourly_df: pd.DataFrame, output_path="rain_frames/rain.gif") -> str:
+    """
+    Create a rain animation over a real map using contextily + geopandas.
+
+    Args:
+        hourly_df: DataFrame with ['date', 'lat', 'lon', 'rain']
+        output_path: where to save the gif
+
+    Returns:
+        path to gif
+    """
+    os.makedirs("rain_frames", exist_ok=True)
+    hourly_df["date"] = pd.to_datetime(hourly_df["date"])
+    frames = []
+
+    # Convert to GeoDataFrame
+    gdf = gpd.GeoDataFrame(
+        hourly_df,
+        geometry=gpd.points_from_xy(hourly_df["lon"], hourly_df["lat"]),
+        crs="EPSG:4326"
+    ).to_crs(epsg=3857)  # Web Mercator for tile overlays
+
+    for timestamp, group in gdf.groupby("date"):
+        fig, ax = plt.subplots(figsize=(7, 7))
+
+        group.plot(
+            ax=ax,
+            column="rain",
+            cmap="Blues",
+            markersize=group["rain"] * 20,
+            legend=True,
+            vmin=0,
+            vmax=10
+        )
+
+        cx.add_basemap(ax, source=cx.providers.OpenStreetMap.Mapnik)
+        ax.set_title(f"Rain at {timestamp.strftime('%Y-%m-%d %H:%M')}")
+        ax.axis("off")
+
+        frame_path = f"rain_frames/frame_{timestamp.strftime('%Y%m%d_%H%M')}.png"
+        plt.savefig(frame_path, bbox_inches="tight")
+        frames.append(imageio.v2.imread(frame_path))
+        plt.close()
+
+    imageio.mimsave(output_path, frames, duration=0.6)
+
+    for f in glob.glob("rain_frames/*.png"):
+        os.remove(f)
+
+    return output_path
+
+import glob
+import os
+
+import contextily as cx
+import geopandas as gpd
+import imageio
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from scipy.interpolate import griddata
+from shapely.geometry import Point
+
+
+def create_rain_gif_cloud_style(hourly_df: pd.DataFrame, output_path="rain_frames/rain_cloud.gif") -> str:
+    """
+    Create an animated GIF showing interpolated rain as cloud over a real map with consistent frame size.
+    """
+    os.makedirs("rain_frames", exist_ok=True)
+    hourly_df["date"] = pd.to_datetime(hourly_df["date"])
+    frames = []
+
+    # Convert to GeoDataFrame and project to Web Mercator
+    gdf = gpd.GeoDataFrame(
+        hourly_df,
+        geometry=gpd.points_from_xy(hourly_df["lon"], hourly_df["lat"]),
+        crs="EPSG:4326"
+    ).to_crs(epsg=3857)
+
+    # Calculate fixed bounds for all frames
+    x_all = gdf.geometry.x
+    y_all = gdf.geometry.y
+    buffer = 20000
+
+    global_xmin = x_all.min() - buffer
+    global_xmax = x_all.max() + buffer
+    global_ymin = y_all.min() - buffer
+    global_ymax = y_all.max() + buffer
+
+    grid_x, grid_y = np.mgrid[
+        global_xmin:global_xmax:200j,
+        global_ymin:global_ymax:200j
+    ]
+
+    # Frame generation
+    for timestamp, group in gdf.groupby("date"):
+        if len(group) < 4:
+            continue  # not enough points for interpolation
+
+        fig, ax = plt.subplots(figsize=(7, 7))
+
+        x = group.geometry.x.values
+        y = group.geometry.y.values
+        z = group["rain"].values
+
+        grid_z = griddata((x, y), z, (grid_x, grid_y), method='cubic', fill_value=0)
+
+        im = ax.imshow(
+            grid_z.T,
+            extent=(global_xmin, global_xmax, global_ymin, global_ymax),
+            origin='lower',
+            cmap='Blues',
+            alpha=0.7,
+            vmin=0,
+            vmax=10
+        )
+
+        cx.add_basemap(ax, source=cx.providers.OpenStreetMap.Mapnik)
+        ax.set_xlim(global_xmin, global_xmax)
+        ax.set_ylim(global_ymin, global_ymax)
+        ax.set_title(f"Rain at {timestamp.strftime('%Y-%m-%d %H:%M')}")
+        ax.axis("off")
+
+        # No dynamic colorbar to avoid frame size variation
+        # Optionally: add a fixed colorbar if needed once for preview
+
+        frame_path = f"rain_frames/frame_{timestamp.strftime('%Y%m%d_%H%M')}.png"
+        plt.savefig(frame_path)
+        plt.close()
+
+        # Read frame and ensure shape is valid
+        try:
+            frame = imageio.v2.imread(frame_path)
+            frames.append(frame)
+        except Exception as e:
+            print(f"Skipping frame {frame_path} due to error: {e}")
+
+    # Final shape check before writing GIF
+    if len(frames) == 0:
+        raise ValueError("❌ No valid frames generated for GIF.")
+
+    first_shape = frames[0].shape
+    if not all(f.shape == first_shape for f in frames):
+        raise ValueError("❌ Not all frames have the same shape. Cannot generate GIF.")
+
+    imageio.mimsave(output_path, frames, duration=0.6)
+
+    # Cleanup PNGs
+    for f in glob.glob("rain_frames/*.png"):
+        os.remove(f)
+
+    return output_path
