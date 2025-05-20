@@ -1,9 +1,11 @@
+import folium
 import pandas as pd
 import streamlit as st
 from src.plotting import plot_daily_summary, plot_weather_custom
 from src.utils import (estimate_next_dry_day, get_road_surface, is_road_dry,
                        plot_road_status_calendar_multi, road_status_per_day)
 from src.weather_data import get_weather_data
+from streamlit_folium import st_folium
 
 st.title("Weather Forecast Dashboard")
 
@@ -58,6 +60,15 @@ if st.button("Get Weather"):
     st.subheader("Hourly Data (Custom Plot)")
     fig = plot_weather_custom(hourly_df)
     st.pyplot(fig)
+    
+
+    st.subheader("Location Map")
+
+    m = folium.Map(location=[lat, lon], zoom_start=14)
+    folium.Marker([lat, lon], tooltip="Ubicación seleccionada").add_to(m)
+
+    st_data = st_folium(m, width=700, height=500)
+
 
 
 st.text("Created by uri zen")
