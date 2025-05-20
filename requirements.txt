@@ -5,3 +5,4 @@ plotly>=5.20
 openmeteo-requests>=1.0.0
 requests-cache>=1.1
 retry-requests>=2.0
+urllib3==2.2.1
