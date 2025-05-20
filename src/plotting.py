@@ -93,3 +93,60 @@ def plot_daily_summary(daily_df: pd.DataFrame):
     fig.legend(loc="upper left", bbox_to_anchor=(0.1, 0.92))
     plt.tight_layout()
     return fig
+
+import pandas as pd
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+
+
+def plot_daily_summary_interactive(daily_df: pd.DataFrame):
+    """
+    Interactive Plotly version of daily summary with temperature, humidity and rain.
+    Returns: Plotly Figure
+    """
+    fig = make_subplots(
+        rows=3, cols=1,
+        shared_xaxes=True,
+        vertical_spacing=0.03,
+        subplot_titles=("Temperature (°C)", "Relative Humidity (%)", "Rain (mm)")
+    )
+
+    dates = pd.to_datetime(daily_df["date_day"])
+    now = pd.Timestamp.utcnow().normalize()
+
+    # Shading for past days
+    shade = dict(type="rect", xref="x", yref="paper",
+                 x0=dates.min(), x1=now, y0=0, y1=1,
+                 fillcolor="lightgray", opacity=0.3, layer="below", line_width=0)
+
+    # Rain spike markers
+    rain_spikes = [
+        dict(type="line", xref="x", yref="paper",
+             x0=dates[i], x1=dates[i], y0=0, y1=1,
+             line=dict(color="purple", width=1, dash="dash"))
+        for i, r in enumerate(daily_df["rain"]) if r >= 10
+    ]
+
+    # Temperature
+    fig.add_trace(go.Scatter(x=dates, y=daily_df["temperature_2m"],
+                             mode="lines+markers", name="Temperature",
+                             line=dict(color="red")), row=1, col=1)
+
+    # Humidity
+    fig.add_trace(go.Scatter(x=dates, y=daily_df["relative_humidity_2m"],
+                             mode="lines+markers", name="Humidity",
+                             line=dict(color="blue")), row=2, col=1)
+
+    # Rain
+    fig.add_trace(go.Scatter(x=dates, y=daily_df["rain"],
+                             mode="lines+markers", name="Rain",
+                             line=dict(color="green")), row=3, col=1)
+
+    # Add shaded area and rain lines
+    fig.update_layout(shapes=[shade] + rain_spikes)
+
+    fig.update_layout(height=600, title_text="Daily Weather Summary", showlegend=False)
+
+    fig.update_xaxes(tickformat="%b %d", title="Date")
+
+    return fig

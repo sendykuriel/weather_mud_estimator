@@ -1,7 +1,7 @@
 import folium
 import pandas as pd
 import streamlit as st
-from src.plotting import plot_daily_summary, plot_weather_custom
+from src.plotting import plot_daily_summary_interactive, plot_weather_custom
 from src.utils import (estimate_next_dry_day, get_road_surface, is_road_dry,
                        plot_road_status_calendar_multi, road_status_per_day)
 from src.weather_data import get_weather_data
@@ -53,10 +53,10 @@ if st.session_state.weather_fetched:
         st.info(f"🟡 Se estima que estará transitable a partir de **{formatted_date}**.")
 
     st.subheader("Daily Summary")
-    fig_daily = plot_daily_summary(daily_df)
-    st.pyplot(fig_daily)
+    fig_daily = plot_daily_summary_interactive(daily_df)
+    st.plotly_chart(fig_daily, use_container_width=True)
 
-    st.subheader("Histórico del estado del camino")
+    st.subheader("Historic Path Status")
     status_df = road_status_per_day(daily_df)
     fig_status = plot_road_status_calendar_multi(status_df)
     st.pyplot(fig_status)
